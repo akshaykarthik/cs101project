@@ -1,3 +1,6 @@
+import math
+
+
 class Location:
     def __init__(self, position, voice):
         self.position = position
@@ -6,9 +9,9 @@ class Location:
 
 class Map:
     def __init__(self):
-        ### Normally this would be loaded in but this is just a testing map.
-        self.map = ((0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0),
-                    (0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0),
+    ### Normally this would be loaded in but this is just a testing map.
+        self.map = ((0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0),
+                    (0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0),
                     (0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0),
                     (0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0),
                     (0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0),
@@ -33,8 +36,11 @@ class Map:
     def get_key_locations(self):
         return self.locations
 
+    def distance(xi, xii, yi, yii):
+        return math.abs(xi - yi) + math.abs(xii - yii)
+
     def astar(self, m, startp, endp):
-        w, h = 12, 12
+        w, h = len(m[0]), len(m)
         sx, sy = startp
         ex, ey = endp
         #[parent node, x, y,g,f]
@@ -62,7 +68,7 @@ class Map:
                         path.append((node[1], node[2]))
                         node = node[0]
                     return list(reversed(path))
-                if 0 <= nx < w and 0 <= ny < h and m[ny][nx] == 0:
+                if (0 <= nx < w) and (0 <= ny < h) and (m[ny][nx] == 0):
                     if ny * w + nx not in createdList:
                         nn = (node, nx, ny, l, l + abs(nx - ex) + abs(ny - ey))
                         createdList[ny * w + nx] = nn
@@ -77,6 +83,7 @@ class Map:
                             else:
                                 break
         return 'not found'
+
 
     def path_to(self, nloc):
         return self.astar(self.map, self.position, nloc)

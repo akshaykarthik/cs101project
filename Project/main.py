@@ -1,13 +1,19 @@
 from Map import Map, Location
+import sys
+import create
 
 if __name__ == "__main__":
-        map = Map()
-        map.load_map("campus.rmap")
-        current_location = -1
-        locations = map.get_key_locations()
+        #r = create.Create(3)
 
-        position = (0, 0)
-        map.set_position(position)
+
+        cmap = Map()
+        cmap.load_map("campus.rmap")
+        current_location = -1
+        locations = cmap.get_key_locations()
+
+        position = (2, 3)
+        cmap.set_position(position)
+
 
         while True:
            #if position == locations[current_location].position:
@@ -15,13 +21,29 @@ if __name__ == "__main__":
                 # talk locations[current_location].voice
                 # current_location += 1
 
-            end_position = (6,11)
-            if map.position == end_position:
+
+            end_position = (1,1)
+
+
+            for val in range(len(cmap.map)):
+                for val2 in range(len(cmap.map[val])):
+                    if (val, val2) == position:
+                        sys.stdout.write("X")
+                    elif (val, val2) == end_position:
+                        sys.stdout.write("@")
+                    else:
+                        sys.stdout.write("0" if cmap.map[val][val2] == 1 else "~")
+
+                print
+            if cmap.position == end_position:
                 break
 
-            path = map.path_to(end_position)
-            print "cur_pos " + str(position) + " || next_pos " +str(path[1]) + " || path" + str(path)
-            map.set_position(path[1])
-            position = path[1]
+            path = cmap.path_to(end_position)
+            if path != 'not found':
+                print "cur {:<8} | next {:<8} | path {}".format(position, path[1], path)
+                cmap.set_position(path[1])
+                position = path[1]
+            else:
+                break
 
 
