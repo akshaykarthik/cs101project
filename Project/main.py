@@ -1,26 +1,32 @@
 import utils
-
+import create
 import numpy as np
 import cv2
 import math
 import time
 import operator
+import Queue
 
 vc = cv2.VideoCapture(0)
-
-
-def round_to(x, base=5):
-    return int(base * round(float(x) / base))
-
+width = 0
+height = 0
+r = create.Create(3)  # create robot
 
 def openCVFunction():
     rval, frame = vc.read()  # frame is color image
 
     ### Line Detection
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # make into gray-scale
+    egray = cv2.equalizeHist(gray)
+    gray = cv2.GaussianBlur(gray, (0, 0), 1)
     canny = cv2.Canny(gray, 100, 300, 3)  # perform canny edge detection
-    canny_color = cv2.cvtColor(canny, cv2.COLOR_GRAY2BGR)
+    ecanny = cv2.Canny(egray, 100, 300, 3)
+
+    cv2.imshow("canny", canny)
+
+
     hough = cv2.HoughLines(canny, 1, math.pi / 180, 125)  # convert edges into lines
+
 
     if hough is not None:  # while we have lines
         angle_data = []
@@ -45,10 +51,7 @@ def openCVFunction():
 
     ### Circle Detection
 
-    img = cv2.medianBlur(gray, 5)
-    cimg = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-
-    circles = cv2.HoughCircles(img, cv2.cv.CV_HOUGH_GRADIENT, 1, 100,
+    circles = cv2.HoughCircles(canny, cv2.cv.CV_HOUGH_GRADIENT, 1, 50,
                                param1=60, param2=30, minRadius=15, maxRadius=100)
 
     if circles is not None:
@@ -58,13 +61,43 @@ def openCVFunction():
 
     cv2.imshow("frame", frame)  # draw frame with line drawn    cv2.imshow("edge", canny_color)
 
-    return average_angles
+    return average_angles, circles
 
+start_moving = False
+time = 0
+last_turn = [0 for x in range(24)]
+while True:
+    time += 1
+    average_angles, circles = openCVFunction()
+    left = 0;
+    right = 0;
+    if circles is not None:
+        for circle in circles[0]:
+            if circle[0] > int(vc.get(3)/2):
+                right += 1
+            else:
+                left += 1
 
-while True:  #each turn
-    average_angles = openCVFunction()
-    print [round_to(x) for x in average_angles]
+    print start_moving, [utils.round_to(x) for x in average_angles], "-- ", len(circles[0]) if circles is not None else " - no circles ", left, right
     key = cv2.waitKey(20)
+    print key
+
+    sensors = r.sensors()
+    if key == 32:
+        r.stop()
+        start_moving = not start_moving
+
+
+    turning = (average_angles[0] if (average_angles[1] < 90) else -average_angles[0])
+    last_turn.append(turning)
+    if start_moving and time%2 is 0:
+        r.go(7.5, 0.5 * last_turn[0])
+    last_turn = last_turn[1:]
+
+    print " ".join([str(x) for x in last_turn])
+
 
     if key == 27: # exit on ESC
+        r.stop()
+        r.close()
         break;
