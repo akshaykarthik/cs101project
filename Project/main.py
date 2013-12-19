@@ -1,31 +1,37 @@
 import utils
 import create
-import numpy as np
 import cv2
 import math
 import time
-import operator
-import Queue
+import texttospeech
 
-vc = cv2.VideoCapture(0)
+is_talking = True
+
+vc = cv2.VideoCapture(1)
 width = 0
 height = 0
 r = create.Create(3)  # create robot
 
 def openCVFunction():
+    vc.read()
     rval, frame = vc.read()  # frame is color image
 
-    ### Line Detection
+    frame = cv2.medianBlur(frame, 21)
+    cv2.imshow("blur", frame)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # make into gray-scale
-    egray = cv2.equalizeHist(gray)
-    gray = cv2.GaussianBlur(gray, (0, 0), 1)
-    canny = cv2.Canny(gray, 100, 300, 3)  # perform canny edge detection
-    ecanny = cv2.Canny(egray, 100, 300, 3)
 
-    cv2.imshow("canny", canny)
+    threshst, thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY);
+    cv2.imshow("grey", gray)
+    cv2.imshow("thresh", thresh)
 
+    canny = cv2.Canny(thresh, 100, 300, 3)  # perform canny edge detection
 
-    hough = cv2.HoughLines(canny, 1, math.pi / 180, 125)  # convert edges into lines
+    hough = cv2.HoughLines(canny, 1, math.pi / 180, 70)  # convert edges into lines
+
+    circles = cv2.HoughCircles(gray, cv2.cv.CV_HOUGH_GRADIENT, 1, 50,
+                               param1=50, param2=30, minRadius=55, maxRadius=100)
+    ### Circle Detection
+
 
 
     if hough is not None:  # while we have lines
@@ -49,10 +55,6 @@ def openCVFunction():
     width, height = int(vc.get(3)), int(vc.get(4))  # width/height of webcam image
     cv2.line(frame, (width / 2, 0), (width / 2, height), (32, 32, 255), 5)  # draw red line
 
-    ### Circle Detection
-
-    circles = cv2.HoughCircles(canny, cv2.cv.CV_HOUGH_GRADIENT, 1, 50,
-                               param1=60, param2=30, minRadius=15, maxRadius=100)
 
     if circles is not None:
         for i in circles[0, :]:
@@ -61,11 +63,13 @@ def openCVFunction():
 
     cv2.imshow("frame", frame)  # draw frame with line drawn    cv2.imshow("edge", canny_color)
 
+
     return average_angles, circles
 
 start_moving = False
 time = 0
-last_turn = [0 for x in range(24)]
+last_turn = [0 for x in range(0)]
+index = 0
 while True:
     time += 1
     average_angles, circles = openCVFunction()
@@ -78,26 +82,41 @@ while True:
             else:
                 left += 1
 
-    print start_moving, [utils.round_to(x) for x in average_angles], "-- ", len(circles[0]) if circles is not None else " - no circles ", left, right
+    #print time, start_moving, [x for x in average_angles], "-- ", len(circles[0]) if circles is not None else " - no circles ", left, right
     key = cv2.waitKey(20)
-    print key
+    #print key
+
 
     sensors = r.sensors()
     if key == 32:
         r.stop()
         start_moving = not start_moving
 
-
     turning = (average_angles[0] if (average_angles[1] < 90) else -average_angles[0])
     last_turn.append(turning)
-    if start_moving and time%2 is 0:
-        r.go(7.5, 0.5 * last_turn[0])
+
+    if start_moving:
+        trn = 0.75*last_turn[0]
+        fwd = abs(15 - 10 * (abs(trn)/90))
+        print fwd, trn
+        r.go(fwd, trn)
+        print fwd, trn
+        #r.turn(trn/2, 20)
     last_turn = last_turn[1:]
 
-    print " ".join([str(x) for x in last_turn])
+    #    print " ".join([str(x) for x in last_turn])
+
+    if is_talking and circles is not None and len(circles) > 0:
+        r.move(25, 0)
+        texttospeech.say(index)
+        index += 1
+        if(index > 3):
+            break
+        r.stop()
 
 
     if key == 27: # exit on ESC
-        r.stop()
-        r.close()
-        break;
+        break
+
+r.stop()d
+r.close()
